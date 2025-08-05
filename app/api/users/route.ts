@@ -1,24 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/auth';
+import { verifyToken } from '@/lib/auth';
 import { db } from '@/lib/database';
-import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
-  const startTime = Date.now();
   try {
     // 驗證管理員權限
-    const admin = await requireAdmin(request);
+    const token = request.headers.get('authorization')?.replace('Bearer ', '')
+    if (!token) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    const decoded = verifyToken(token)
+    if (!decoded || decoded.role !== 'admin') {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
+    }
+
     // 查詢參數
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
     const limit = Math.max(1, Math.min(100, parseInt(searchParams.get('limit') || '20', 10)));
     const offset = (page - 1) * limit;
     
-    // 查詢用戶總數
-    const countResult = await db.queryOne<{ total: number }>('SELECT COUNT(*) as total FROM users');
+    // 優化：使用 COUNT(*) 查詢用戶總數
+    const countResult = await db.queryOne('SELECT COUNT(*) as total FROM users');
     const total = countResult?.total || 0;
     
-    // 查詢用戶列表，包含應用和評價統計
+    // 優化：使用子查詢減少 JOIN 複雜度，提升查詢效能
     const users = await db.query(`
       SELECT 
         u.id, 
@@ -27,20 +34,28 @@ export async function GET(request: NextRequest) {
         u.avatar, 
         u.department, 
         u.role, 
+        u.status,
         u.join_date, 
         u.total_likes, 
         u.total_views, 
         u.created_at, 
         u.updated_at,
-        COUNT(DISTINCT a.id) as total_apps,
-        COUNT(DISTINCT js.id) as total_reviews
+        COALESCE(app_stats.total_apps, 0) as total_apps,
+        COALESCE(review_stats.total_reviews, 0) as total_reviews
       FROM users u
-      LEFT JOIN apps a ON u.id = a.creator_id
-      LEFT JOIN judge_scores js ON u.id = js.judge_id
-      GROUP BY u.id
+      LEFT JOIN (
+        SELECT creator_id, COUNT(*) as total_apps 
+        FROM apps 
+        GROUP BY creator_id
+      ) app_stats ON u.id = app_stats.creator_id
+      LEFT JOIN (
+        SELECT judge_id, COUNT(*) as total_reviews 
+        FROM judge_scores 
+        GROUP BY judge_id
+      ) review_stats ON u.id = review_stats.judge_id
       ORDER BY u.created_at DESC 
-      LIMIT ${limit} OFFSET ${offset}
-    `);
+      LIMIT ? OFFSET ?
+    `, [limit, offset]);
     
     // 分頁資訊
     const totalPages = Math.ceil(total / limit);
@@ -69,9 +84,9 @@ export async function GET(request: NextRequest) {
         avatar: user.avatar,
         department: user.department,
         role: user.role,
-        status: "active", // 預設狀態為活躍
+        status: user.status || "active",
         joinDate: formatDate(user.join_date),
-        lastLogin: formatDate(user.updated_at), // 使用 updated_at 作為最後登入時間
+        lastLogin: formatDate(user.updated_at),
         totalApps: user.total_apps || 0,
         totalReviews: user.total_reviews || 0,
         totalLikes: user.total_likes || 0,
@@ -81,7 +96,7 @@ export async function GET(request: NextRequest) {
       pagination: { page, limit, total, totalPages, hasNext, hasPrev }
     });
   } catch (error) {
-    logger.logError(error as Error, 'Users List API');
-    return NextResponse.json({ error: '內部伺服器錯誤', details: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
+    console.error('Error fetching users:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 } 

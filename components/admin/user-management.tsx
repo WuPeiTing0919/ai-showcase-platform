@@ -102,8 +102,7 @@ export function UserManagement() {
           console.error('獲取統計資料失敗')
         }
       } catch (error) {
-        console.error('載入用戶資料失敗:', error)
-        setError('載入用戶資料失敗')
+        console.error('載入資料失敗:', error)
       } finally {
         setIsLoading(false)
       }
@@ -111,6 +110,24 @@ export function UserManagement() {
 
     fetchUsers()
   }, [])
+
+  // 重新獲取統計數據的函數
+  const refreshStats = async () => {
+    try {
+      const statsResponse = await fetch('/api/users/stats', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      })
+      
+      if (statsResponse.ok) {
+        const statsData = await statsResponse.json()
+        setStats(statsData)
+      }
+    } catch (error) {
+      console.error('重新獲取統計資料失敗:', error)
+    }
+  }
 
   // 邀請用戶表單狀態 - 包含電子郵件和預設角色
   const [inviteEmail, setInviteEmail] = useState("")
@@ -140,9 +157,51 @@ export function UserManagement() {
     return matchesSearch && matchesDepartment && matchesRole && matchesStatus
   })
 
-  const handleViewUser = (user: any) => {
-    setSelectedUser(user)
-    setShowUserDetail(true)
+  const handleViewUser = async (user: any) => {
+    setIsLoading(true)
+    
+    try {
+      const response = await fetch(`/api/users/${user.id}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      })
+
+      if (response.ok) {
+        const userData = await response.json()
+        
+        // 獲取用戶活動記錄
+        const activityResponse = await fetch(`/api/users/${user.id}/activity`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        })
+        
+        let activityData = []
+        if (activityResponse.ok) {
+          activityData = await activityResponse.json()
+        }
+        
+        // 合併用戶資料和活動記錄
+        const userWithActivity = {
+          ...userData,
+          activities: activityData
+        }
+        
+        setSelectedUser(userWithActivity)
+        setShowUserDetail(true)
+      } else {
+        const errorData = await response.json()
+        setError(errorData.error || "獲取用戶詳情失敗")
+        setTimeout(() => setError(""), 3000)
+      }
+    } catch (error) {
+      console.error('Error fetching user details:', error)
+      setError("獲取用戶詳情失敗")
+      setTimeout(() => setError(""), 3000)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleEditUser = (user: any) => {
@@ -165,18 +224,39 @@ export function UserManagement() {
   const handleToggleUserStatus = async (userId: string) => {
     setIsLoading(true)
 
-    // 模擬 API 調用
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    try {
+      const newStatus = users.find(user => user.id === userId)?.status === "active" ? "inactive" : "active"
+      
+      const response = await fetch(`/api/users/${userId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      })
 
-    setUsers(
-      users.map((user) =>
-        user.id === userId ? { ...user, status: user.status === "active" ? "inactive" : "active" } : user,
-      ),
-    )
-
-    setIsLoading(false)
-    setSuccess("用戶狀態更新成功！")
-    setTimeout(() => setSuccess(""), 3000)
+      if (response.ok) {
+        setUsers(
+          users.map((user) =>
+            user.id === userId ? { ...user, status: newStatus } : user,
+          ),
+        )
+        setSuccess("用戶狀態更新成功！")
+        setTimeout(() => setSuccess(""), 3000)
+        refreshStats() // 更新統計數據
+      } else {
+        const errorData = await response.json()
+        setError(errorData.error || "更新用戶狀態失敗")
+        setTimeout(() => setError(""), 3000)
+      }
+    } catch (error) {
+      console.error('Error updating user status:', error)
+      setError("更新用戶狀態失敗")
+      setTimeout(() => setError(""), 3000)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleChangeUserRole = async (userId: string, newRole: string) => {
@@ -190,6 +270,7 @@ export function UserManagement() {
     setIsLoading(false)
     setSuccess(`用戶權限已更新為${getRoleText(newRole)}！`)
     setTimeout(() => setSuccess(""), 3000)
+    refreshStats() // 更新統計數據
   }
 
   const handleGenerateInvitation = async () => {
@@ -308,23 +389,42 @@ export function UserManagement() {
       return
     }
 
-    // 檢查電子郵件是否被其他用戶使用
-    if (users.some((user) => user.email === editUser.email && user.id !== editUser.id)) {
-      setError("此電子郵件已被其他用戶使用")
-      return
-    }
-
     setIsLoading(true)
 
-    // 模擬 API 調用
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    try {
+      const response = await fetch(`/api/users/${editUser.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          name: editUser.name,
+          email: editUser.email,
+          department: editUser.department,
+          role: editUser.role
+        })
+      })
 
-    setUsers(users.map((user) => (user.id === editUser.id ? { ...user, ...editUser } : user)))
-
-    setIsLoading(false)
-    setShowEditUser(false)
-    setSuccess("用戶資料更新成功！")
-    setTimeout(() => setSuccess(""), 3000)
+      if (response.ok) {
+        const result = await response.json()
+        setUsers(users.map((user) => (user.id === editUser.id ? { ...user, ...editUser } : user)))
+        setShowEditUser(false)
+        setSuccess("用戶資料更新成功！")
+        setTimeout(() => setSuccess(""), 3000)
+        refreshStats() // 更新統計數據
+      } else {
+        const errorData = await response.json()
+        setError(errorData.error || "更新用戶資料失敗")
+        setTimeout(() => setError(""), 3000)
+      }
+    } catch (error) {
+      console.error('Error updating user:', error)
+      setError("更新用戶資料失敗")
+      setTimeout(() => setError(""), 3000)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const confirmDeleteUser = async () => {
@@ -332,16 +432,33 @@ export function UserManagement() {
 
     setIsLoading(true)
 
-    // 模擬 API 調用
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    try {
+      const response = await fetch(`/api/users/${userToDelete.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      })
 
-    setUsers(users.filter((user) => user.id !== userToDelete.id))
-
-    setIsLoading(false)
-    setShowDeleteConfirm(false)
-    setUserToDelete(null)
-    setSuccess("用戶刪除成功！")
-    setTimeout(() => setSuccess(""), 3000)
+      if (response.ok) {
+        setUsers(users.filter((user) => user.id !== userToDelete.id))
+        setShowDeleteConfirm(false)
+        setUserToDelete(null)
+        setSuccess("用戶刪除成功！")
+        setTimeout(() => setSuccess(""), 3000)
+        refreshStats() // 更新統計數據
+      } else {
+        const errorData = await response.json()
+        setError(errorData.error || "刪除用戶失敗")
+        setTimeout(() => setError(""), 3000)
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error)
+      setError("刪除用戶失敗")
+      setTimeout(() => setError(""), 3000)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const getRoleColor = (role: string) => {
@@ -1169,22 +1286,32 @@ export function UserManagement() {
                     <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-500">用戶尚未註冊，暫無活動記錄</p>
                   </div>
-                ) : (
+                ) : selectedUser.activities && selectedUser.activities.length > 0 ? (
                   <div className="space-y-3">
-                    <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                      <Calendar className="w-4 h-4 text-blue-600" />
-                      <div>
-                        <p className="text-sm font-medium">登入系統</p>
-                        <p className="text-xs text-gray-500">2024-01-20 16:45</p>
+                    {selectedUser.activities.map((activity: any, index: number) => (
+                      <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                        {activity.type === 'login' ? (
+                          <Calendar className="w-4 h-4 text-blue-600" />
+                        ) : activity.type === 'view_app' ? (
+                          <Eye className="w-4 h-4 text-green-600" />
+                        ) : activity.type === 'create_app' ? (
+                          <Code className="w-4 h-4 text-purple-600" />
+                        ) : activity.type === 'review' ? (
+                          <Activity className="w-4 h-4 text-orange-600" />
+                        ) : (
+                          <Activity className="w-4 h-4 text-gray-600" />
+                        )}
+                        <div>
+                          <p className="text-sm font-medium">{activity.description}</p>
+                          <p className="text-xs text-gray-500">{activity.timestamp}</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                      <Eye className="w-4 h-4 text-green-600" />
-                      <div>
-                        <p className="text-sm font-medium">查看應用：智能對話助手</p>
-                        <p className="text-xs text-gray-500">2024-01-20 15:30</p>
-                      </div>
-                    </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500">暫無活動記錄</p>
                   </div>
                 )}
               </TabsContent>
@@ -1219,7 +1346,7 @@ export function UserManagement() {
                     <CardContent className="p-4">
                       <div className="text-center">
                         <p className="text-2xl font-bold text-orange-600">
-                          {selectedUser.status === "invited" ? 0 : 15}
+                          {selectedUser.status === "invited" ? 0 : (selectedUser.loginDays || 0)}
                         </p>
                         <p className="text-sm text-gray-600">登入天數</p>
                       </div>
