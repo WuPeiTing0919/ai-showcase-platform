@@ -131,52 +131,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      })
 
-    const foundUser = mockUsers.find((u) => u.email === email)
-    if (foundUser && password === "password123") {
-      setUser(foundUser)
-      localStorage.setItem("user", JSON.stringify(foundUser))
+      const data = await response.json()
+
+      if (response.ok && data.user) {
+        setUser(data.user)
+        localStorage.setItem("user", JSON.stringify(data.user))
+        localStorage.setItem("token", data.token)
+        setIsLoading(false)
+        return true
+      } else {
+        console.error('登入失敗:', data.error)
+        setIsLoading(false)
+        return false
+      }
+    } catch (error) {
+      console.error('登入錯誤:', error)
       setIsLoading(false)
-      return true
+      return false
     }
-
-    setIsLoading(false)
-    return false
   }
 
   const register = async (userData: RegisterData): Promise<boolean> => {
     setIsLoading(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      })
 
-    // Check if user already exists
-    const existingUser = mockUsers.find((u) => u.email === userData.email)
-    if (existingUser) {
+      const data = await response.json()
+
+      if (response.ok && data.user) {
+        setUser(data.user)
+        localStorage.setItem("user", JSON.stringify(data.user))
+        setIsLoading(false)
+        return true
+      } else {
+        console.error('註冊失敗:', data.error)
+        setIsLoading(false)
+        return false
+      }
+    } catch (error) {
+      console.error('註冊錯誤:', error)
       setIsLoading(false)
       return false
     }
-
-    const newUser: User = {
-      id: Date.now().toString(),
-      name: userData.name,
-      email: userData.email,
-      department: userData.department,
-      role: "user",
-      joinDate: new Date().toISOString().split("T")[0],
-      favoriteApps: [],
-      recentApps: [],
-      totalLikes: 0,
-      totalViews: 0,
-    }
-
-    mockUsers.push(newUser)
-    setUser(newUser)
-    localStorage.setItem("user", JSON.stringify(newUser))
-    setIsLoading(false)
-    return true
   }
 
   const logout = () => {

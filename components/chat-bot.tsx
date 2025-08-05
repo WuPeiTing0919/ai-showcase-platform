@@ -24,7 +24,7 @@ interface Message {
   quickQuestions?: string[]
 }
 
-const DEEPSEEK_API_KEY = process.env.NEXT_PUBLIC_DEEPSEEK_API_KEY || "sk-3640dcff23fe4a069a64f536ac538d75"
+const DEEPSEEK_API_KEY = process.env.NEXT_PUBLIC_DEEPSEEK_API_KEY || ""
 const DEEPSEEK_API_URL = process.env.NEXT_PUBLIC_DEEPSEEK_API_URL || "https://api.deepseek.com/v1/chat/completions"
 
 const systemPrompt = `你是一個競賽管理系統的AI助手，專門幫助用戶了解如何使用這個系統。

@@ -74,8 +74,7 @@ ai-showcase-platform/
 ├── app/                    # Next.js App Router
 │   ├── admin/             # 管理員頁面
 │   │   ├── page.tsx       # 管理員主頁
-│   │   ├── scoring/       # 評分管理
-│   │   └── scoring-test/  # 評分測試
+│   │   └── scoring/       # 評分管理
 │   ├── competition/       # 競賽頁面
 │   ├── judge-scoring/     # 評審評分頁面
 │   ├── register/          # 註冊頁面

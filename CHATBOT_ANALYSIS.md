@@ -45,7 +45,7 @@ const [isLoading, setIsLoading] = useState(false)     // 載入狀態
 ### 2.3 API整合
 ```typescript
 // DeepSeek API 配置
-const DEEPSEEK_API_KEY = "sk-3640dcff23fe4a069a64f536ac538d75"
+const DEEPSEEK_API_KEY = "your_api_key_here"
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
 
 // API 調用函數

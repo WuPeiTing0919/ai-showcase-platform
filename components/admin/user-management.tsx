@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -58,6 +58,57 @@ export function UserManagement() {
   const [isLoading, setIsLoading] = useState(false)
   const [success, setSuccess] = useState("")
   const [error, setError] = useState("")
+  const [stats, setStats] = useState({
+    total: 0,
+    admin: 0,
+    developer: 0,
+    user: 0,
+    today: 0
+  })
+
+  // 載入用戶資料
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setIsLoading(true)
+        
+        // 獲取用戶列表
+        const usersResponse = await fetch('/api/users', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        })
+        
+        if (usersResponse.ok) {
+          const usersData = await usersResponse.json()
+          setUsers(usersData.users || [])
+        } else {
+          console.error('獲取用戶列表失敗')
+        }
+
+        // 獲取統計資料
+        const statsResponse = await fetch('/api/users/stats', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        })
+        
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json()
+          setStats(statsData)
+        } else {
+          console.error('獲取統計資料失敗')
+        }
+      } catch (error) {
+        console.error('載入用戶資料失敗:', error)
+        setError('載入用戶資料失敗')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchUsers()
+  }, [])
 
   // 邀請用戶表單狀態 - 包含電子郵件和預設角色
   const [inviteEmail, setInviteEmail] = useState("")
@@ -395,7 +446,7 @@ export function UserManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">總用戶數</p>
-                <p className="text-2xl font-bold">{users.length}</p>
+                <p className="text-2xl font-bold">{stats.total}</p>
               </div>
               <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                 <Users className="w-4 h-4 text-blue-600" />
@@ -409,7 +460,7 @@ export function UserManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">活躍用戶</p>
-                <p className="text-2xl font-bold">{users.filter((u) => u.status === "active").length}</p>
+                <p className="text-2xl font-bold">{stats.total}</p>
               </div>
               <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
                 <Activity className="w-4 h-4 text-green-600" />
@@ -423,7 +474,7 @@ export function UserManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">管理員</p>
-                <p className="text-2xl font-bold">{users.filter((u) => u.role === "admin").length}</p>
+                <p className="text-2xl font-bold">{stats.admin}</p>
               </div>
               <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
                 <Shield className="w-4 h-4 text-purple-600" />
@@ -437,7 +488,7 @@ export function UserManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">開發者</p>
-                <p className="text-2xl font-bold">{users.filter((u) => u.role === "developer").length}</p>
+                <p className="text-2xl font-bold">{stats.developer}</p>
               </div>
               <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
                 <Code className="w-4 h-4 text-green-600" />
@@ -450,11 +501,11 @@ export function UserManagement() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">待註冊</p>
-                <p className="text-2xl font-bold">{users.filter((u) => u.status === "invited").length}</p>
+                <p className="text-sm text-gray-600">一般用戶</p>
+                <p className="text-2xl font-bold">{stats.user}</p>
               </div>
               <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                <Clock className="w-4 h-4 text-yellow-600" />
+                <User className="w-4 h-4 text-yellow-600" />
               </div>
             </div>
           </CardContent>
@@ -464,8 +515,8 @@ export function UserManagement() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">本月新增</p>
-                <p className="text-2xl font-bold">2</p>
+                <p className="text-sm text-gray-600">今日新增</p>
+                <p className="text-2xl font-bold">{stats.today}</p>
               </div>
               <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
                 <UserPlus className="w-4 h-4 text-orange-600" />
@@ -537,21 +588,33 @@ export function UserManagement() {
           <CardDescription>管理所有平台用戶</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>用戶</TableHead>
-                <TableHead>部門</TableHead>
-                <TableHead>角色</TableHead>
-                <TableHead>狀態</TableHead>
-                <TableHead>加入日期</TableHead>
-                <TableHead>最後登入</TableHead>
-                <TableHead>統計</TableHead>
-                <TableHead>操作</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredUsers.map((user) => (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+              <span className="ml-2 text-gray-600">載入用戶資料中...</span>
+            </div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="text-center py-8">
+              <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600">沒有找到用戶</p>
+              <p className="text-sm text-gray-500 mt-1">嘗試調整搜尋條件或篩選器</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>用戶</TableHead>
+                  <TableHead>部門</TableHead>
+                  <TableHead>角色</TableHead>
+                  <TableHead>狀態</TableHead>
+                  <TableHead>加入日期</TableHead>
+                  <TableHead>最後登入</TableHead>
+                  <TableHead>統計</TableHead>
+                  <TableHead>操作</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredUsers.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell>
                     <div className="flex items-center space-x-3">
@@ -642,6 +705,7 @@ export function UserManagement() {
               ))}
             </TableBody>
           </Table>
+          )}
         </CardContent>
       </Card>
 

@@ -344,7 +344,7 @@ export default function AIShowcasePlatform() {
   const filteredAwards = getFilteredAwards()
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex flex-col">
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -401,9 +401,9 @@ export default function AIShowcasePlatform() {
             </div>
           </div>
         </div>
-      </header>
+              </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {showCompetition ? (
           // Competition Content
           <>
@@ -999,7 +999,7 @@ export default function AIShowcasePlatform() {
       </div>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 mt-16">
+      <footer className="bg-white border-t border-gray-200 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="text-sm text-gray-500 mb-4 md:mb-0">

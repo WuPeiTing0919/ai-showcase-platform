@@ -86,7 +86,7 @@ export function RegisterDialog({ open, onOpenChange }: RegisterDialogProps) {
           <div className="text-center py-6">
             <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-green-700 mb-2">註冊成功！</h3>
-            <p className="text-gray-600">您的帳號已創建，請等待管理員審核。</p>
+            <p className="text-gray-600">您的帳號已創建，現在可以登入使用。</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">

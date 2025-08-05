@@ -107,11 +107,7 @@ export function LoginDialog({ open, onOpenChange, onSwitchToRegister, onSwitchTo
             </Alert>
           )}
 
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <p className="text-sm text-gray-600 mb-2">測試帳號：</p>
-            <p className="text-sm">Email: zhang@panjit.com</p>
-            <p className="text-sm">Password: password123</p>
-          </div>
+
 
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading ? "登入中..." : "登入"}

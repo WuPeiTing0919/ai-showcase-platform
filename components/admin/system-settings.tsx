@@ -78,8 +78,8 @@ export function SystemSettings() {
   }
 
   const handleTestEmail = () => {
-    // 測試郵件功能
-    alert("測試郵件已發送！")
+    // 測試郵件功能 - 僅用於開發測試
+    console.log("測試郵件功能")
   }
 
   const updateSetting = (key: string, value: any) => {
