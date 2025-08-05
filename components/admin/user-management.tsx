@@ -63,7 +63,9 @@ export function UserManagement() {
     admin: 0,
     developer: 0,
     user: 0,
-    today: 0
+    today: 0,
+    totalApps: 0,
+    totalReviews: 0
   })
 
   // 載入用戶資料
@@ -440,7 +442,7 @@ export function UserManagement() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-8 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -520,6 +522,34 @@ export function UserManagement() {
               </div>
               <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
                 <UserPlus className="w-4 h-4 text-orange-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">應用</p>
+                <p className="text-2xl font-bold">{stats.totalApps}</p>
+              </div>
+              <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
+                <Code className="w-4 h-4 text-indigo-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">評價</p>
+                <p className="text-2xl font-bold">{stats.totalReviews}</p>
+              </div>
+              <div className="w-8 h-8 bg-pink-100 rounded-full flex items-center justify-center">
+                <Activity className="w-4 h-4 text-pink-600" />
               </div>
             </div>
           </CardContent>
