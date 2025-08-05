@@ -20,8 +20,18 @@ const recentActivities: any[] = []
 
 const topApps: any[] = []
 
-export function AdminDashboard() {
+interface AdminDashboardProps {
+  onPageChange?: (page: string) => void
+}
+
+export function AdminDashboard({ onPageChange }: AdminDashboardProps) {
   const { competitions } = useCompetition()
+
+  const handleManageUsers = () => {
+    if (onPageChange) {
+      onPageChange("users")
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -150,7 +160,7 @@ export function AdminDashboard() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button className="h-20 flex flex-col space-y-2">
+            <Button className="h-20 flex flex-col space-y-2" onClick={handleManageUsers}>
               <Users className="w-6 h-6" />
               <span>管理用戶</span>
             </Button>

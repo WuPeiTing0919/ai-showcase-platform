@@ -15,7 +15,7 @@ export function AdminPanel() {
   const renderPage = () => {
     switch (currentPage) {
       case "dashboard":
-        return <AdminDashboard />
+        return <AdminDashboard onPageChange={setCurrentPage} />
       case "users":
         return <UserManagement />
       case "apps":
@@ -27,7 +27,7 @@ export function AdminPanel() {
       case "settings":
         return <SystemSettings />
       default:
-        return <AdminDashboard />
+        return <AdminDashboard onPageChange={setCurrentPage} />
     }
   }
 

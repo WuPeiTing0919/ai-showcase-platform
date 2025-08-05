@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 import {
   Search,
   MoreHorizontal,
@@ -67,6 +68,12 @@ export function UserManagement() {
     totalApps: 0,
     totalReviews: 0
   })
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalUsers, setTotalUsers] = useState(0)
+  const [itemsPerPage] = useState(10) // Default to 10 items per page
 
   // 載入用戶資料
   useEffect(() => {
@@ -74,8 +81,8 @@ export function UserManagement() {
       try {
         setIsLoading(true)
         
-        // 獲取用戶列表
-        const usersResponse = await fetch('/api/users', {
+        // 獲取用戶列表 with pagination
+        const usersResponse = await fetch(`/api/users?page=${currentPage}&limit=${itemsPerPage}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
@@ -84,6 +91,8 @@ export function UserManagement() {
         if (usersResponse.ok) {
           const usersData = await usersResponse.json()
           setUsers(usersData.users || [])
+          setTotalPages(usersData.pagination?.totalPages || 1)
+          setTotalUsers(usersData.pagination?.total || 0)
         } else {
           const errorData = await usersResponse.json().catch(() => ({}))
           console.error('獲取用戶列表失敗:', errorData.error || usersResponse.statusText)
@@ -105,14 +114,15 @@ export function UserManagement() {
           console.error('獲取統計資料失敗:', errorData.error || statsResponse.statusText)
         }
       } catch (error) {
-        console.error('載入資料失敗:', error)
+        console.error('載入用戶資料失敗:', error)
+        setError('載入用戶資料失敗')
       } finally {
         setIsLoading(false)
       }
     }
 
     fetchUsers()
-  }, [])
+  }, [currentPage, itemsPerPage]) // Re-fetch when page changes
 
   // 重新獲取統計數據的函數
   const refreshStats = async () => {
@@ -734,8 +744,11 @@ export function UserManagement() {
       {/* Users Table */}
       <Card>
         <CardHeader>
-          <CardTitle>用戶列表 ({filteredUsers.length})</CardTitle>
-          <CardDescription>管理所有平台用戶</CardDescription>
+          <CardTitle>用戶列表 ({totalUsers} 總用戶)</CardTitle>
+          <CardDescription>
+            管理所有平台用戶 - 第 {currentPage} 頁，共 {totalPages} 頁
+            {totalPages > 1 && ` (每頁 ${itemsPerPage} 筆)`}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -858,6 +871,66 @@ export function UserManagement() {
           )}
         </CardContent>
       </Card>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center py-4">
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious 
+                  href="#" 
+                  onClick={(e) => {
+                    e.preventDefault()
+                    if (currentPage > 1) setCurrentPage(currentPage - 1)
+                  }}
+                  className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                />
+              </PaginationItem>
+              
+              {/* Page numbers */}
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum
+                if (totalPages <= 5) {
+                  pageNum = i + 1
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i
+                } else {
+                  pageNum = currentPage - 2 + i
+                }
+                
+                return (
+                  <PaginationItem key={pageNum}>
+                    <PaginationLink
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        setCurrentPage(pageNum)
+                      }}
+                      isActive={currentPage === pageNum}
+                    >
+                      {pageNum}
+                    </PaginationLink>
+                  </PaginationItem>
+                )
+              })}
+              
+              <PaginationItem>
+                <PaginationNext 
+                  href="#" 
+                  onClick={(e) => {
+                    e.preventDefault()
+                    if (currentPage < totalPages) setCurrentPage(currentPage + 1)
+                  }}
+                  className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
 
       {/* Invite User Dialog - 包含角色選擇 */}
       <Dialog open={showInviteUser} onOpenChange={setShowInviteUser}>
