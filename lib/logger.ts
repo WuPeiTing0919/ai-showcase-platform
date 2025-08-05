@@ -152,6 +152,17 @@ export class Logger {
       context: context || this.context
     });
   }
+
+  // 活動日誌
+  logActivity(userId: string, entityType: string, entityId: string, action: string, data?: any) {
+    this.info('User Activity', {
+      userId,
+      entityType,
+      entityId,
+      action,
+      data
+    });
+  }
 }
 
 // 預設日誌實例

@@ -121,33 +121,107 @@ export function AppSubmissionDialog({ open, onOpenChange }: AppSubmissionDialogP
   }
 
   const handleSubmit = async () => {
+    if (!user) {
+      console.error('用戶未登入')
+      return
+    }
+
     setIsSubmitting(true)
 
-    // 模擬提交過程
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    try {
+      // 準備應用程式資料
+      const appData = {
+        name: formData.name,
+        description: formData.description,
+        type: mapTypeToApiType(formData.type),
+        demoUrl: formData.appUrl || undefined,
+        githubUrl: formData.sourceCodeUrl || undefined,
+        docsUrl: formData.documentation || undefined,
+        techStack: formData.technicalDetails ? [formData.technicalDetails] : undefined,
+        tags: formData.features ? [formData.features] : undefined,
+        version: '1.0.0'
+      }
 
-    setIsSubmitting(false)
-    setIsSubmitted(true)
-
-    // 3秒後關閉對話框
-    setTimeout(() => {
-      onOpenChange(false)
-      setIsSubmitted(false)
-      setStep(1)
-      setFormData({
-        name: "",
-        type: "文字處理",
-        description: "",
-        appUrl: "",
-        demoFile: null,
-        sourceCodeUrl: "",
-        documentation: "",
-        features: "",
-        technicalDetails: "",
-        requestFeatured: false,
-        agreeTerms: false,
+      // 調用 API 創建應用程式
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/apps', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(appData)
       })
-    }, 3000)
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || '創建應用程式失敗')
+      }
+
+      const result = await response.json()
+      console.log('應用程式創建成功:', result)
+
+      setIsSubmitting(false)
+      setIsSubmitted(true)
+
+      // 3秒後關閉對話框
+      setTimeout(() => {
+        onOpenChange(false)
+        setIsSubmitted(false)
+        setStep(1)
+        setFormData({
+          name: "",
+          type: "文字處理",
+          description: "",
+          appUrl: "",
+          demoFile: null,
+          sourceCodeUrl: "",
+          documentation: "",
+          features: "",
+          technicalDetails: "",
+          requestFeatured: false,
+          agreeTerms: false,
+        })
+      }, 3000)
+
+    } catch (error) {
+      console.error('創建應用程式失敗:', error)
+      setIsSubmitting(false)
+      // 這裡可以添加錯誤提示
+      alert(`創建應用程式失敗: ${error instanceof Error ? error.message : '未知錯誤'}`)
+    }
+  }
+
+  // 將前端類型映射到 API 類型
+  const mapTypeToApiType = (frontendType: string): string => {
+    const typeMap: Record<string, string> = {
+      '文字處理': 'productivity',
+      '圖像生成': 'ai_model',
+      '圖像處理': 'ai_model',
+      '語音辨識': 'ai_model',
+      '推薦系統': 'ai_model',
+      '音樂生成': 'ai_model',
+      '程式開發': 'automation',
+      '影像處理': 'ai_model',
+      '對話系統': 'ai_model',
+      '數據分析': 'data_analysis',
+      '設計工具': 'productivity',
+      '語音技術': 'ai_model',
+      '教育工具': 'educational',
+      '健康醫療': 'healthcare',
+      '金融科技': 'finance',
+      '物聯網': 'iot_device',
+      '區塊鏈': 'blockchain',
+      'AR/VR': 'ar_vr',
+      '機器學習': 'machine_learning',
+      '電腦視覺': 'computer_vision',
+      '自然語言處理': 'nlp',
+      '機器人': 'robotics',
+      '網路安全': 'cybersecurity',
+      '雲端服務': 'cloud_service',
+      '其他': 'other'
+    }
+    return typeMap[frontendType] || 'other'
   }
 
   const isStep1Valid = formData.name && formData.description && formData.appUrl
@@ -245,9 +319,28 @@ export function AppSubmissionDialog({ open, onOpenChange }: AppSubmissionDialogP
                         <SelectContent>
                           <SelectItem value="文字處理">文字處理</SelectItem>
                           <SelectItem value="圖像生成">圖像生成</SelectItem>
+                          <SelectItem value="圖像處理">圖像處理</SelectItem>
                           <SelectItem value="語音辨識">語音辨識</SelectItem>
                           <SelectItem value="推薦系統">推薦系統</SelectItem>
+                          <SelectItem value="音樂生成">音樂生成</SelectItem>
+                          <SelectItem value="程式開發">程式開發</SelectItem>
+                          <SelectItem value="影像處理">影像處理</SelectItem>
+                          <SelectItem value="對話系統">對話系統</SelectItem>
                           <SelectItem value="數據分析">數據分析</SelectItem>
+                          <SelectItem value="設計工具">設計工具</SelectItem>
+                          <SelectItem value="語音技術">語音技術</SelectItem>
+                          <SelectItem value="教育工具">教育工具</SelectItem>
+                          <SelectItem value="健康醫療">健康醫療</SelectItem>
+                          <SelectItem value="金融科技">金融科技</SelectItem>
+                          <SelectItem value="物聯網">物聯網</SelectItem>
+                          <SelectItem value="區塊鏈">區塊鏈</SelectItem>
+                          <SelectItem value="AR/VR">AR/VR</SelectItem>
+                          <SelectItem value="機器學習">機器學習</SelectItem>
+                          <SelectItem value="電腦視覺">電腦視覺</SelectItem>
+                          <SelectItem value="自然語言處理">自然語言處理</SelectItem>
+                          <SelectItem value="機器人">機器人</SelectItem>
+                          <SelectItem value="網路安全">網路安全</SelectItem>
+                          <SelectItem value="雲端服務">雲端服務</SelectItem>
                           <SelectItem value="其他">其他</SelectItem>
                         </SelectContent>
                       </Select>

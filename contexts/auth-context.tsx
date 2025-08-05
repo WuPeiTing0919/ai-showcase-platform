@@ -67,6 +67,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
+  // 初始化時檢查現有的認證狀態
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        const savedUser = localStorage.getItem("user")
+        const token = localStorage.getItem("token")
+        
+        if (savedUser && token) {
+          const userData = JSON.parse(savedUser)
+          setUser(userData)
+          console.log('從 localStorage 恢復用戶狀態:', userData)
+        }
+      } catch (error) {
+        console.error('初始化認證狀態失敗:', error)
+        // 清除無效的認證資料
+        localStorage.removeItem("user")
+        localStorage.removeItem("token")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    initializeAuth()
+  }, [])
+
   // View count state with localStorage persistence
   const [appViews, setAppViews] = useState<Record<string, number>>(() => {
     if (typeof window !== "undefined") {
@@ -194,6 +219,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     setUser(null)
     localStorage.removeItem("user")
+    localStorage.removeItem("token")
   }
 
   const updateProfile = async (userData: Partial<User>): Promise<boolean> => {

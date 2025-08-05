@@ -4,7 +4,7 @@ import { db } from './database';
 import bcrypt from 'bcrypt';
 
 // JWT 配置
-const JWT_SECRET = process.env.JWT_SECRET || 'ai_platform_jwt_secret_key_2024';
+const JWT_SECRET = process.env.JWT_SECRET || 'good777';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
 // 用戶角色類型
@@ -82,19 +82,26 @@ export async function authenticateUser(request: NextRequest): Promise<User | nul
   try {
     const token = extractToken(request);
     if (!token) {
+      console.log('No token found in request');
       return null;
     }
 
     const payload = verifyToken(token);
     if (!payload) {
+      console.log('Token verification failed');
       return null;
     }
 
+    console.log('Token payload:', payload);
+
     // 從資料庫獲取最新用戶資料
-    const user = await db.queryOne<User>(
+    const users = await db.query<User>(
       'SELECT * FROM users WHERE id = ? AND email = ?',
       [payload.userId, payload.email]
     );
+
+    const user = users.length > 0 ? users[0] : null;
+    console.log('Database query result:', user);
 
     return user;
   } catch (error) {

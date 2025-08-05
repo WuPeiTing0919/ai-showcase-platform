@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -84,6 +84,7 @@ const mockApps: any[] = []
 
 export function AppManagement() {
   const [apps, setApps] = useState(mockApps)
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedType, setSelectedType] = useState("all")
   const [selectedStatus, setSelectedStatus] = useState("all")
@@ -95,6 +96,16 @@ export function AppManagement() {
   const [showApprovalDialog, setShowApprovalDialog] = useState(false)
   const [approvalAction, setApprovalAction] = useState<"approve" | "reject">("approve")
   const [approvalReason, setApprovalReason] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalApps, setTotalApps] = useState(0)
+  const [stats, setStats] = useState({
+    published: 0,
+    pending: 0,
+    draft: 0,
+    rejected: 0
+  })
+  const itemsPerPage = 10
   const [newApp, setNewApp] = useState({
     name: "",
     type: "文字處理",
@@ -106,15 +117,91 @@ export function AppManagement() {
     iconColor: "from-blue-500 to-purple-500",
   })
 
-  const filteredApps = apps.filter((app) => {
-    const matchesSearch =
-      app.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      app.creator.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesType = selectedType === "all" || app.type === selectedType
-    const matchesStatus = selectedStatus === "all" || app.status === selectedStatus
+  // 載入應用程式
+  useEffect(() => {
+    const loadApps = async () => {
+      try {
+        setLoading(true)
+        const token = localStorage.getItem('token')
+        
+        if (!token) {
+          console.log('未找到 token，跳過載入應用程式')
+          setLoading(false)
+          return
+        }
 
-    return matchesSearch && matchesType && matchesStatus
-  })
+        const params = new URLSearchParams({
+          page: currentPage.toString(),
+          limit: itemsPerPage.toString()
+        })
+        
+        if (searchTerm) {
+          params.append('search', searchTerm)
+        }
+        if (selectedType !== 'all') {
+          params.append('type', mapTypeToApiType(selectedType))
+        }
+        if (selectedStatus !== 'all') {
+          params.append('status', selectedStatus)
+        }
+        
+        const response = await fetch(`/api/apps?${params.toString()}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+
+        if (!response.ok) {
+          throw new Error(`載入應用程式失敗: ${response.status}`)
+        }
+
+        const data = await response.json()
+        console.log('載入的應用程式:', data)
+        
+        // 轉換 API 資料格式為前端期望的格式
+        const formattedApps = (data.apps || []).map((app: any) => ({
+          ...app,
+          creator: app.creator?.name || '未知',
+          department: app.creator?.department || '未知',
+          views: app.viewsCount || 0,
+          likes: app.likesCount || 0,
+          appUrl: app.demoUrl || '',
+          type: mapApiTypeToDisplayType(app.type), // 將 API 類型轉換為中文顯示
+          icon: 'Bot',
+          iconColor: 'from-blue-500 to-purple-500',
+          reviews: 0, // API 中沒有評論數，設為 0
+          createdAt: app.createdAt ? new Date(app.createdAt).toLocaleDateString() : '未知'
+        }))
+        
+        console.log('格式化後的應用程式:', formattedApps)
+        setApps(formattedApps)
+        
+        // 更新分頁資訊和統計
+        if (data.pagination) {
+          setTotalPages(data.pagination.totalPages)
+          setTotalApps(data.pagination.total)
+        }
+        if (data.stats) {
+          setStats(data.stats)
+        }
+      } catch (error) {
+        console.error('載入應用程式失敗:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadApps()
+  }, [currentPage, searchTerm, selectedType, selectedStatus])
+
+  // 當過濾條件改變時，重置到第一頁
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, selectedType, selectedStatus])
+
+  // 使用從 API 返回的應用程式，因為過濾已在服務器端完成
+  const filteredApps = apps
 
   const handleViewApp = (app: any) => {
     setSelectedApp(app)
@@ -169,47 +256,191 @@ export function AppManagement() {
     setShowApprovalDialog(true)
   }
 
-  const confirmApproval = () => {
+  const confirmApproval = async () => {
     if (selectedApp) {
-      setApps(
-        apps.map((app) =>
-          app.id === selectedApp.id
-            ? {
-                ...app,
-                status: approvalAction === "approve" ? "published" : "rejected",
-              }
-            : app,
-        ),
-      )
-      setShowApprovalDialog(false)
-      setSelectedApp(null)
-      setApprovalReason("")
+      try {
+        const token = localStorage.getItem('token')
+        if (!token) {
+          throw new Error('未找到認證 token，請重新登入')
+        }
+
+        // 準備更新資料
+        const updateData = {
+          status: approvalAction === "approve" ? "published" : "rejected"
+        }
+
+        // 如果有備註或原因，可以添加到描述中或創建一個新的欄位
+        if (approvalReason.trim()) {
+          // 這裡可以根據需要添加備註欄位
+          console.log(`${approvalAction === "approve" ? "批准備註" : "拒絕原因"}:`, approvalReason)
+        }
+
+        const response = await fetch(`/api/apps/${selectedApp.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(updateData)
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || `更新失敗: ${response.status}`)
+        }
+
+        // 更新本地狀態
+        setApps(
+          apps.map((app) =>
+            app.id === selectedApp.id
+              ? {
+                  ...app,
+                  status: approvalAction === "approve" ? "published" : "rejected",
+                }
+              : app,
+          ),
+        )
+
+        // 顯示成功訊息
+        alert(`應用程式已${approvalAction === "approve" ? "批准" : "拒絕"}`)
+        
+        setShowApprovalDialog(false)
+        setSelectedApp(null)
+        setApprovalReason("")
+      } catch (error) {
+        console.error('更新應用程式狀態失敗:', error)
+        const errorMessage = error instanceof Error ? error.message : '未知錯誤'
+        alert(`更新失敗: ${errorMessage}`)
+      }
     }
   }
 
-  const handleAddApp = () => {
-    const app = {
-      id: Date.now().toString(),
-      ...newApp,
-      status: "pending",
-      createdAt: new Date().toISOString().split("T")[0],
-      views: 0,
-      likes: 0,
-      rating: 0,
-      reviews: 0,
+  const handleAddApp = async () => {
+    try {
+      // 準備應用程式資料
+      const appData = {
+        name: newApp.name,
+        description: newApp.description,
+        type: mapTypeToApiType(newApp.type),
+        demoUrl: newApp.appUrl || undefined,
+        version: '1.0.0'
+      }
+
+      console.log('準備提交的應用資料:', appData)
+
+      // 調用 API 創建應用程式
+      const token = localStorage.getItem('token')
+      console.log('Token:', token ? '存在' : '不存在')
+
+      if (!token) {
+        throw new Error('未找到認證 token，請重新登入')
+      }
+
+      const response = await fetch('/api/apps', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(appData)
+      })
+
+      console.log('API 回應狀態:', response.status, response.statusText)
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('API 錯誤詳情:', errorData)
+        throw new Error(errorData.error || `API 錯誤: ${response.status} ${response.statusText}`)
+      }
+
+      const result = await response.json()
+      console.log('應用程式創建成功:', result)
+
+      // 更新本地狀態
+      const app = {
+        id: result.appId || Date.now().toString(),
+        ...newApp,
+        status: result.app?.status || "draft", // 使用 API 返回的狀態
+        createdAt: new Date().toISOString().split("T")[0],
+        views: 0,
+        likes: 0,
+        rating: 0,
+        reviews: 0,
+      }
+      setApps([...apps, app])
+      setNewApp({
+        name: "",
+        type: "文字處理",
+        department: "HQBU",
+        creator: "",
+        description: "",
+        appUrl: "",
+        icon: "Bot",
+        iconColor: "from-blue-500 to-purple-500",
+      })
+      setShowAddApp(false)
+
+    } catch (error) {
+      console.error('創建應用程式失敗:', error)
+      const errorMessage = error instanceof Error ? error.message : '未知錯誤'
+      alert(`創建應用程式失敗: ${errorMessage}`)
     }
-    setApps([...apps, app])
-    setNewApp({
-      name: "",
-      type: "文字處理",
-      department: "HQBU",
-      creator: "",
-      description: "",
-      appUrl: "",
-      icon: "Bot",
-      iconColor: "from-blue-500 to-purple-500",
-    })
-    setShowAddApp(false)
+  }
+
+  // 將前端類型映射到 API 類型
+  const mapTypeToApiType = (frontendType: string): string => {
+    const typeMap: Record<string, string> = {
+      '文字處理': 'productivity',
+      '圖像生成': 'ai_model',
+      '圖像處理': 'ai_model',
+      '語音辨識': 'ai_model',
+      '推薦系統': 'ai_model',
+      '音樂生成': 'ai_model',
+      '程式開發': 'automation',
+      '影像處理': 'ai_model',
+      '對話系統': 'ai_model',
+      '數據分析': 'data_analysis',
+      '設計工具': 'productivity',
+      '語音技術': 'ai_model',
+      '教育工具': 'educational',
+      '健康醫療': 'healthcare',
+      '金融科技': 'finance',
+      '物聯網': 'iot_device',
+      '區塊鏈': 'blockchain',
+      'AR/VR': 'ar_vr',
+      '機器學習': 'machine_learning',
+      '電腦視覺': 'computer_vision',
+      '自然語言處理': 'nlp',
+      '機器人': 'robotics',
+      '網路安全': 'cybersecurity',
+      '雲端服務': 'cloud_service',
+      '其他': 'other'
+    }
+    return typeMap[frontendType] || 'other'
+  }
+
+  // 將 API 類型映射到前端顯示的中文類型
+  const mapApiTypeToDisplayType = (apiType: string): string => {
+    const typeMap: Record<string, string> = {
+      'productivity': '文字處理',
+      'ai_model': '圖像生成',
+      'automation': '程式開發',
+      'data_analysis': '數據分析',
+      'educational': '教育工具',
+      'healthcare': '健康醫療',
+      'finance': '金融科技',
+      'iot_device': '物聯網',
+      'blockchain': '區塊鏈',
+      'ar_vr': 'AR/VR',
+      'machine_learning': '機器學習',
+      'computer_vision': '電腦視覺',
+      'nlp': '自然語言處理',
+      'robotics': '機器人',
+      'cybersecurity': '網路安全',
+      'cloud_service': '雲端服務',
+      'other': '其他'
+    }
+    return typeMap[apiType] || '其他'
   }
 
   const handleUpdateApp = () => {
@@ -248,8 +479,29 @@ export function AppManagement() {
     const colors = {
       文字處理: "bg-blue-100 text-blue-800 border-blue-200",
       圖像生成: "bg-purple-100 text-purple-800 border-purple-200",
+      圖像處理: "bg-purple-100 text-purple-800 border-purple-200",
       語音辨識: "bg-green-100 text-green-800 border-green-200",
       推薦系統: "bg-orange-100 text-orange-800 border-orange-200",
+      音樂生成: "bg-pink-100 text-pink-800 border-pink-200",
+      程式開發: "bg-indigo-100 text-indigo-800 border-indigo-200",
+      影像處理: "bg-purple-100 text-purple-800 border-purple-200",
+      對話系統: "bg-teal-100 text-teal-800 border-teal-200",
+      數據分析: "bg-cyan-100 text-cyan-800 border-cyan-200",
+      設計工具: "bg-blue-100 text-blue-800 border-blue-200",
+      語音技術: "bg-green-100 text-green-800 border-green-200",
+      教育工具: "bg-emerald-100 text-emerald-800 border-emerald-200",
+      健康醫療: "bg-red-100 text-red-800 border-red-200",
+      金融科技: "bg-yellow-100 text-yellow-800 border-yellow-200",
+      物聯網: "bg-slate-100 text-slate-800 border-slate-200",
+      區塊鏈: "bg-violet-100 text-violet-800 border-violet-200",
+      'AR/VR': "bg-fuchsia-100 text-fuchsia-800 border-fuchsia-200",
+      機器學習: "bg-rose-100 text-rose-800 border-rose-200",
+      電腦視覺: "bg-purple-100 text-purple-800 border-purple-200",
+      自然語言處理: "bg-teal-100 text-teal-800 border-teal-200",
+      機器人: "bg-gray-100 text-gray-800 border-gray-200",
+      網路安全: "bg-red-100 text-red-800 border-red-200",
+      雲端服務: "bg-sky-100 text-sky-800 border-sky-200",
+      其他: "bg-gray-100 text-gray-800 border-gray-200"
     }
     return colors[type as keyof typeof colors] || "bg-gray-100 text-gray-800 border-gray-200"
   }
@@ -293,7 +545,7 @@ export function AppManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">總應用數</p>
-                <p className="text-2xl font-bold">{apps.length}</p>
+                <p className="text-2xl font-bold">{totalApps}</p>
               </div>
               <Bot className="w-8 h-8 text-blue-600" />
             </div>
@@ -305,7 +557,7 @@ export function AppManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">已發布</p>
-                <p className="text-2xl font-bold">{apps.filter((a) => a.status === "published").length}</p>
+                <p className="text-2xl font-bold">{stats.published}</p>
               </div>
               <CheckCircle className="w-8 h-8 text-green-600" />
             </div>
@@ -317,7 +569,7 @@ export function AppManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">待審核</p>
-                <p className="text-2xl font-bold">{apps.filter((a) => a.status === "pending").length}</p>
+                <p className="text-2xl font-bold">{stats.pending}</p>
               </div>
               <Clock className="w-8 h-8 text-yellow-600" />
             </div>
@@ -347,8 +599,29 @@ export function AppManagement() {
                   <SelectItem value="all">全部類型</SelectItem>
                   <SelectItem value="文字處理">文字處理</SelectItem>
                   <SelectItem value="圖像生成">圖像生成</SelectItem>
+                  <SelectItem value="圖像處理">圖像處理</SelectItem>
                   <SelectItem value="語音辨識">語音辨識</SelectItem>
                   <SelectItem value="推薦系統">推薦系統</SelectItem>
+                  <SelectItem value="音樂生成">音樂生成</SelectItem>
+                  <SelectItem value="程式開發">程式開發</SelectItem>
+                  <SelectItem value="影像處理">影像處理</SelectItem>
+                  <SelectItem value="對話系統">對話系統</SelectItem>
+                  <SelectItem value="數據分析">數據分析</SelectItem>
+                  <SelectItem value="設計工具">設計工具</SelectItem>
+                  <SelectItem value="語音技術">語音技術</SelectItem>
+                  <SelectItem value="教育工具">教育工具</SelectItem>
+                  <SelectItem value="健康醫療">健康醫療</SelectItem>
+                  <SelectItem value="金融科技">金融科技</SelectItem>
+                  <SelectItem value="物聯網">物聯網</SelectItem>
+                  <SelectItem value="區塊鏈">區塊鏈</SelectItem>
+                  <SelectItem value="AR/VR">AR/VR</SelectItem>
+                  <SelectItem value="機器學習">機器學習</SelectItem>
+                  <SelectItem value="電腦視覺">電腦視覺</SelectItem>
+                  <SelectItem value="自然語言處理">自然語言處理</SelectItem>
+                  <SelectItem value="機器人">機器人</SelectItem>
+                  <SelectItem value="網路安全">網路安全</SelectItem>
+                  <SelectItem value="雲端服務">雲端服務</SelectItem>
+                  <SelectItem value="其他">其他</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -372,7 +645,7 @@ export function AppManagement() {
       {/* Apps Table */}
       <Card>
         <CardHeader>
-          <CardTitle>應用列表 ({filteredApps.length})</CardTitle>
+          <CardTitle>應用列表 ({totalApps})</CardTitle>
           <CardDescription>管理所有 AI 應用</CardDescription>
         </CardHeader>
         <CardContent>
@@ -390,7 +663,27 @@ export function AppManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredApps.map((app) => (
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8">
+                    <div className="flex items-center justify-center space-x-2">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                      <span className="text-gray-600">載入應用程式中...</span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : filteredApps.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8">
+                    <div className="text-gray-500">
+                      <Bot className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                      <p className="text-lg font-medium">尚無應用程式</p>
+                      <p className="text-sm">點擊右上角的「新增應用」按鈕來創建第一個應用程式</p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredApps.map((app) => (
                 <TableRow key={app.id}>
                   <TableCell>
                     <div className="flex items-center space-x-3">
@@ -513,11 +806,59 @@ export function AppManagement() {
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              ))}
+              ))
+            )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-600">
+                顯示第 {((currentPage - 1) * itemsPerPage) + 1} 到 {Math.min(currentPage * itemsPerPage, totalApps)} 筆，共 {totalApps} 筆
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  上一頁
+                </Button>
+                <div className="flex items-center space-x-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    const pageNum = i + 1
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(pageNum)}
+                        className="w-8 h-8"
+                      >
+                        {pageNum}
+                      </Button>
+                    )
+                  })}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  下一頁
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Add App Dialog */}
       <Dialog open={showAddApp} onOpenChange={setShowAddApp}>
@@ -559,8 +900,29 @@ export function AppManagement() {
                   <SelectContent>
                     <SelectItem value="文字處理">文字處理</SelectItem>
                     <SelectItem value="圖像生成">圖像生成</SelectItem>
+                    <SelectItem value="圖像處理">圖像處理</SelectItem>
                     <SelectItem value="語音辨識">語音辨識</SelectItem>
                     <SelectItem value="推薦系統">推薦系統</SelectItem>
+                    <SelectItem value="音樂生成">音樂生成</SelectItem>
+                    <SelectItem value="程式開發">程式開發</SelectItem>
+                    <SelectItem value="影像處理">影像處理</SelectItem>
+                    <SelectItem value="對話系統">對話系統</SelectItem>
+                    <SelectItem value="數據分析">數據分析</SelectItem>
+                    <SelectItem value="設計工具">設計工具</SelectItem>
+                    <SelectItem value="語音技術">語音技術</SelectItem>
+                    <SelectItem value="教育工具">教育工具</SelectItem>
+                    <SelectItem value="健康醫療">健康醫療</SelectItem>
+                    <SelectItem value="金融科技">金融科技</SelectItem>
+                    <SelectItem value="物聯網">物聯網</SelectItem>
+                    <SelectItem value="區塊鏈">區塊鏈</SelectItem>
+                    <SelectItem value="AR/VR">AR/VR</SelectItem>
+                    <SelectItem value="機器學習">機器學習</SelectItem>
+                    <SelectItem value="電腦視覺">電腦視覺</SelectItem>
+                    <SelectItem value="自然語言處理">自然語言處理</SelectItem>
+                    <SelectItem value="機器人">機器人</SelectItem>
+                    <SelectItem value="網路安全">網路安全</SelectItem>
+                    <SelectItem value="雲端服務">雲端服務</SelectItem>
+                    <SelectItem value="其他">其他</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

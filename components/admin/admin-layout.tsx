@@ -77,8 +77,48 @@ const mockNotifications: Notification[] = []
 const mockSearchData: SearchResult[] = []
 
 export function AdminLayout({ children, currentPage, onPageChange }: AdminLayoutProps) {
-  const { user, logout } = useAuth()
+  const { user, logout, isLoading } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
+
+  // 認證檢查
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="flex items-center space-x-2">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+          <span className="text-gray-600">載入中...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">需要登入</h1>
+          <p className="text-gray-600 mb-6">請先登入才能訪問管理員頁面</p>
+          <Button onClick={() => window.location.href = '/'}>
+            返回首頁
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (user.role !== 'admin') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">權限不足</h1>
+          <p className="text-gray-600 mb-6">您沒有訪問管理員頁面的權限</p>
+          <Button onClick={() => window.location.href = '/'}>
+            返回首頁
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("")
