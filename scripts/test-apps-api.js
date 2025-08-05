@@ -12,7 +12,7 @@ const dbConfig = {
   timezone: '+08:00'
 };
 
-const JWT_SECRET = 'ai_platform_jwt_secret_key_2024';
+const JWT_SECRET = process.env.JWT_SECRET || 'good777';
 
 async function testAppsAPI() {
   let connection;

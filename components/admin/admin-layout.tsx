@@ -78,9 +78,33 @@ const mockSearchData: SearchResult[] = []
 
 export function AdminLayout({ children, currentPage, onPageChange }: AdminLayoutProps) {
   const { user, logout, isLoading } = useAuth()
+  
+  // Move ALL hooks to the top, before any conditional logic
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
+  const [showSearchResults, setShowSearchResults] = useState(false)
+  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications)
+  const [showNotifications, setShowNotifications] = useState(false)
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false)
 
-  // 認證檢查
+  // Handle search
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      const filtered = mockSearchData.filter(
+        (item) =>
+          item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          item.subtitle.toLowerCase().includes(searchQuery.toLowerCase()),
+      )
+      setSearchResults(filtered.slice(0, 8)) // Limit to 8 results
+      setShowSearchResults(true)
+    } else {
+      setSearchResults([])
+      setShowSearchResults(false)
+    }
+  }, [searchQuery])
+
+  // 認證檢查 - moved after all hooks
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -119,34 +143,6 @@ export function AdminLayout({ children, currentPage, onPageChange }: AdminLayout
       </div>
     )
   }
-
-  // Search state
-  const [searchQuery, setSearchQuery] = useState("")
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
-  const [showSearchResults, setShowSearchResults] = useState(false)
-
-  // Notification state
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications)
-  const [showNotifications, setShowNotifications] = useState(false)
-
-  // Logout confirmation state
-  const [showLogoutDialog, setShowLogoutDialog] = useState(false)
-
-  // Handle search
-  useEffect(() => {
-    if (searchQuery.trim()) {
-      const filtered = mockSearchData.filter(
-        (item) =>
-          item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          item.subtitle.toLowerCase().includes(searchQuery.toLowerCase()),
-      )
-      setSearchResults(filtered.slice(0, 8)) // Limit to 8 results
-      setShowSearchResults(true)
-    } else {
-      setSearchResults([])
-      setShowSearchResults(false)
-    }
-  }, [searchQuery])
 
   // Get unread notification count
   const unreadCount = notifications.filter((n) => !n.read).length
