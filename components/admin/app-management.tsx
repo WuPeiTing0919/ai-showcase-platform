@@ -118,80 +118,80 @@ export function AppManagement() {
   })
 
   // 載入應用程式
-  useEffect(() => {
-    const loadApps = async () => {
-      try {
-        setLoading(true)
-        const token = localStorage.getItem('token')
-        
-        if (!token) {
-          console.log('未找到 token，跳過載入應用程式')
-          setLoading(false)
-          return
-        }
-
-        const params = new URLSearchParams({
-          page: currentPage.toString(),
-          limit: itemsPerPage.toString()
-        })
-        
-        if (searchTerm) {
-          params.append('search', searchTerm)
-        }
-        if (selectedType !== 'all') {
-          params.append('type', mapTypeToApiType(selectedType))
-        }
-        if (selectedStatus !== 'all') {
-          params.append('status', selectedStatus)
-        }
-        
-        const response = await fetch(`/api/apps?${params.toString()}`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        })
-
-        if (!response.ok) {
-          throw new Error(`載入應用程式失敗: ${response.status}`)
-        }
-
-        const data = await response.json()
-        console.log('載入的應用程式:', data)
-        
-        // 轉換 API 資料格式為前端期望的格式
-        const formattedApps = (data.apps || []).map((app: any) => ({
-          ...app,
-          creator: app.creator?.name || '未知',
-          department: app.creator?.department || '未知',
-          views: app.viewsCount || 0,
-          likes: app.likesCount || 0,
-          appUrl: app.demoUrl || '',
-          type: mapApiTypeToDisplayType(app.type), // 將 API 類型轉換為中文顯示
-          icon: 'Bot',
-          iconColor: 'from-blue-500 to-purple-500',
-          reviews: 0, // API 中沒有評論數，設為 0
-          createdAt: app.createdAt ? new Date(app.createdAt).toLocaleDateString() : '未知'
-        }))
-        
-        console.log('格式化後的應用程式:', formattedApps)
-        setApps(formattedApps)
-        
-        // 更新分頁資訊和統計
-        if (data.pagination) {
-          setTotalPages(data.pagination.totalPages)
-          setTotalApps(data.pagination.total)
-        }
-        if (data.stats) {
-          setStats(data.stats)
-        }
-      } catch (error) {
-        console.error('載入應用程式失敗:', error)
-      } finally {
+  const loadApps = async () => {
+    try {
+      setLoading(true)
+      const token = localStorage.getItem('token')
+      
+      if (!token) {
+        console.log('未找到 token，跳過載入應用程式')
         setLoading(false)
+        return
       }
-    }
 
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: itemsPerPage.toString()
+      })
+      
+      if (searchTerm) {
+        params.append('search', searchTerm)
+      }
+      if (selectedType !== 'all') {
+        params.append('type', mapTypeToApiType(selectedType))
+      }
+      if (selectedStatus !== 'all') {
+        params.append('status', selectedStatus)
+      }
+      
+      const response = await fetch(`/api/apps?${params.toString()}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`載入應用程式失敗: ${response.status}`)
+      }
+
+      const data = await response.json()
+      console.log('載入的應用程式:', data)
+      
+      // 轉換 API 資料格式為前端期望的格式
+      const formattedApps = (data.apps || []).map((app: any) => ({
+        ...app,
+        creator: app.creator?.name || '未知',
+        department: app.creator?.department || '未知',
+        views: app.viewsCount || 0,
+        likes: app.likesCount || 0,
+        appUrl: app.demoUrl || '',
+        type: mapApiTypeToDisplayType(app.type), // 將 API 類型轉換為中文顯示
+        icon: 'Bot',
+        iconColor: 'from-blue-500 to-purple-500',
+        reviews: 0, // API 中沒有評論數，設為 0
+        createdAt: app.createdAt ? new Date(app.createdAt).toLocaleDateString() : '未知'
+      }))
+      
+      console.log('格式化後的應用程式:', formattedApps)
+      setApps(formattedApps)
+      
+      // 更新分頁資訊和統計
+      if (data.pagination) {
+        setTotalPages(data.pagination.totalPages)
+        setTotalApps(data.pagination.total)
+      }
+      if (data.stats) {
+        setStats(data.stats)
+      }
+    } catch (error) {
+      console.error('載入應用程式失敗:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
     loadApps()
   }, [currentPage, searchTerm, selectedType, selectedStatus])
 
@@ -203,20 +203,45 @@ export function AppManagement() {
   // 使用從 API 返回的應用程式，因為過濾已在服務器端完成
   const filteredApps = apps
 
-  const handleViewApp = (app: any) => {
-    setSelectedApp(app)
-    setShowAppDetail(true)
+  const handleViewApp = async (app: any) => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        throw new Error('未找到認證 token，請重新登入')
+      }
+
+      // Fetch detailed app information from API
+      const response = await fetch(`/api/apps/${app.id}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `獲取應用詳情失敗: ${response.status}`)
+      }
+
+      const detailedApp = await response.json()
+      setSelectedApp(detailedApp)
+      setShowAppDetail(true)
+    } catch (error) {
+      console.error('獲取應用詳情失敗:', error)
+      const errorMessage = error instanceof Error ? error.message : '未知錯誤'
+      alert(`獲取應用詳情失敗: ${errorMessage}`)
+    }
   }
 
   const handleEditApp = (app: any) => {
     setSelectedApp(app)
     setNewApp({
       name: app.name,
-      type: app.type,
-      department: app.department,
-      creator: app.creator,
+      type: app.type, // 這裡已經是中文類型了，因為在 loadApps 中已經轉換
+      department: app.department || "HQBU", // 直接使用 department，不是 app.creator?.department
+      creator: app.creator || "", // 直接使用 creator，不是 app.creator?.name
       description: app.description,
-      appUrl: app.appUrl,
+      appUrl: app.appUrl || "", // 使用 appUrl，不是 app.demoUrl
       icon: app.icon || "Bot",
       iconColor: app.iconColor || "from-blue-500 to-purple-500",
     })
@@ -228,25 +253,89 @@ export function AppManagement() {
     setShowDeleteConfirm(true)
   }
 
-  const confirmDeleteApp = () => {
+  const confirmDeleteApp = async () => {
     if (selectedApp) {
-      setApps(apps.filter((app) => app.id !== selectedApp.id))
-      setShowDeleteConfirm(false)
-      setSelectedApp(null)
+      try {
+        const token = localStorage.getItem('token')
+        if (!token) {
+          throw new Error('未找到認證 token，請重新登入')
+        }
+
+        const response = await fetch(`/api/apps/${selectedApp.id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || `刪除失敗: ${response.status}`)
+        }
+
+        // Remove from local state
+        setApps(apps.filter((app) => app.id !== selectedApp.id))
+        setShowDeleteConfirm(false)
+        setSelectedApp(null)
+        
+        // Reload apps to update statistics
+        loadApps()
+        
+        alert('應用程式刪除成功')
+      } catch (error) {
+        console.error('刪除應用程式失敗:', error)
+        const errorMessage = error instanceof Error ? error.message : '未知錯誤'
+        alert(`刪除失敗: ${errorMessage}`)
+      }
     }
   }
 
-  const handleToggleAppStatus = (appId: string) => {
-    setApps(
-      apps.map((app) =>
-        app.id === appId
-          ? {
-              ...app,
-              status: app.status === "published" ? "draft" : "published",
-            }
-          : app,
-      ),
-    )
+  const handleToggleAppStatus = async (appId: string) => {
+    try {
+      const app = apps.find(a => a.id === appId)
+      if (!app) return
+
+      const token = localStorage.getItem('token')
+      if (!token) {
+        throw new Error('未找到認證 token，請重新登入')
+      }
+
+      const newStatus = app.status === "published" ? "draft" : "published"
+      
+      const response = await fetch(`/api/apps/${appId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          status: newStatus
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `狀態更新失敗: ${response.status}`)
+      }
+
+      // Update local state
+      setApps(
+        apps.map((app) =>
+          app.id === appId
+            ? { ...app, status: newStatus }
+            : app,
+        ),
+      )
+
+      // Reload apps to update statistics
+      loadApps()
+      
+      alert(`應用程式已${newStatus === "published" ? "發布" : "下架"}`)
+    } catch (error) {
+      console.error('更新應用狀態失敗:', error)
+      const errorMessage = error instanceof Error ? error.message : '未知錯誤'
+      alert(`狀態更新失敗: ${errorMessage}`)
+    }
   }
 
   const handleApprovalAction = (app: any, action: "approve" | "reject") => {
@@ -443,20 +532,59 @@ export function AppManagement() {
     return typeMap[apiType] || '其他'
   }
 
-  const handleUpdateApp = () => {
+  const handleUpdateApp = async () => {
     if (selectedApp) {
-      setApps(
-        apps.map((app) =>
-          app.id === selectedApp.id
-            ? {
-                ...app,
-                ...newApp,
-              }
-            : app,
-        ),
-      )
-      setShowEditApp(false)
-      setSelectedApp(null)
+      try {
+        const token = localStorage.getItem('token')
+        if (!token) {
+          throw new Error('未找到認證 token，請重新登入')
+        }
+
+        // Prepare update data
+        const updateData = {
+          name: newApp.name,
+          description: newApp.description,
+          type: mapTypeToApiType(newApp.type),
+          demoUrl: newApp.appUrl || undefined,
+        }
+
+        const response = await fetch(`/api/apps/${selectedApp.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(updateData)
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || `更新失敗: ${response.status}`)
+        }
+
+        // Update local state
+        setApps(
+          apps.map((app) =>
+            app.id === selectedApp.id
+              ? {
+                  ...app,
+                  ...newApp,
+                  type: mapTypeToApiType(newApp.type),
+                  demoUrl: newApp.appUrl,
+                }
+              : app,
+          ),
+        )
+        
+        setShowEditApp(false)
+        setSelectedApp(null)
+        
+        alert('應用程式更新成功')
+      } catch (error) {
+        console.error('更新應用程式失敗:', error)
+        const errorMessage = error instanceof Error ? error.message : '未知錯誤'
+        alert(`更新失敗: ${errorMessage}`)
+      }
     }
   }
 
@@ -1054,8 +1182,29 @@ export function AppManagement() {
                   <SelectContent>
                     <SelectItem value="文字處理">文字處理</SelectItem>
                     <SelectItem value="圖像生成">圖像生成</SelectItem>
+                    <SelectItem value="圖像處理">圖像處理</SelectItem>
                     <SelectItem value="語音辨識">語音辨識</SelectItem>
                     <SelectItem value="推薦系統">推薦系統</SelectItem>
+                    <SelectItem value="音樂生成">音樂生成</SelectItem>
+                    <SelectItem value="程式開發">程式開發</SelectItem>
+                    <SelectItem value="影像處理">影像處理</SelectItem>
+                    <SelectItem value="對話系統">對話系統</SelectItem>
+                    <SelectItem value="數據分析">數據分析</SelectItem>
+                    <SelectItem value="設計工具">設計工具</SelectItem>
+                    <SelectItem value="語音技術">語音技術</SelectItem>
+                    <SelectItem value="教育工具">教育工具</SelectItem>
+                    <SelectItem value="健康醫療">健康醫療</SelectItem>
+                    <SelectItem value="金融科技">金融科技</SelectItem>
+                    <SelectItem value="物聯網">物聯網</SelectItem>
+                    <SelectItem value="區塊鏈">區塊鏈</SelectItem>
+                    <SelectItem value="AR/VR">AR/VR</SelectItem>
+                    <SelectItem value="機器學習">機器學習</SelectItem>
+                    <SelectItem value="電腦視覺">電腦視覺</SelectItem>
+                    <SelectItem value="自然語言處理">自然語言處理</SelectItem>
+                    <SelectItem value="機器人">機器人</SelectItem>
+                    <SelectItem value="網路安全">網路安全</SelectItem>
+                    <SelectItem value="雲端服務">雲端服務</SelectItem>
+                    <SelectItem value="其他">其他</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1226,126 +1375,248 @@ export function AppManagement() {
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="info">基本資訊</TabsTrigger>
                 <TabsTrigger value="stats">統計數據</TabsTrigger>
-                <TabsTrigger value="reviews">評價管理</TabsTrigger>
+                <TabsTrigger value="technical">技術詳情</TabsTrigger>
               </TabsList>
 
               <TabsContent value="info" className="space-y-4">
-                <div className="flex items-start space-x-4">
-                  <div
-                    className={`w-16 h-16 bg-gradient-to-r ${selectedApp.iconColor} rounded-xl flex items-center justify-center`}
-                  >
-                    {(() => {
-                      const IconComponent = availableIcons.find((icon) => icon.name === selectedApp.icon)?.icon || Bot
-                      return <IconComponent className="w-8 h-8 text-white" />
-                    })()}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700">應用名稱</Label>
+                    <p className="text-sm text-gray-900">{selectedApp.name}</p>
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <h3 className="text-xl font-semibold">{selectedApp.name}</h3>
-                      {selectedApp.appUrl && (
-                        <Button variant="outline" size="sm" onClick={() => window.open(selectedApp.appUrl, "_blank")}>
-                          <ExternalLink className="w-4 h-4 mr-2" />
-                          開啟應用
-                        </Button>
-                      )}
-                    </div>
-                    <p className="text-gray-600 mb-2">{selectedApp.description}</p>
-                    <div className="flex flex-wrap gap-2">
-                      <Badge variant="outline" className={getTypeColor(selectedApp.type)}>
-                        {selectedApp.type}
-                      </Badge>
-                      <Badge variant="outline" className="bg-gray-100 text-gray-700">
-                        {selectedApp.department}
-                      </Badge>
-                      <Badge variant="outline" className={getStatusColor(selectedApp.status)}>
-                        {getStatusText(selectedApp.status)}
-                      </Badge>
-                    </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700">應用類型</Label>
+                    <Badge className={getTypeColor(mapApiTypeToDisplayType(selectedApp.type))}>
+                      {mapApiTypeToDisplayType(selectedApp.type)}
+                    </Badge>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700">創建者</Label>
+                    <p className="text-sm text-gray-900">{selectedApp.creator?.name || '未知'}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700">所屬部門</Label>
+                    <p className="text-sm text-gray-900">{selectedApp.creator?.department || '未知'}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700">當前狀態</Label>
+                    <Badge className={getStatusColor(selectedApp.status)}>
+                      {getStatusText(selectedApp.status)}
+                    </Badge>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700">版本</Label>
+                    <p className="text-sm text-gray-900">{selectedApp.version || '1.0.0'}</p>
                   </div>
                 </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-gray-700">應用描述</Label>
+                  <p className="text-sm text-gray-900 bg-gray-50 p-3 rounded-lg">
+                    {selectedApp.description}
+                  </p>
+                </div>
+
+                {selectedApp.demoUrl && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700">演示連結</Label>
+                    <div className="flex items-center space-x-2">
+                      <Link className="w-4 h-4 text-blue-500" />
+                      <a
+                        href={selectedApp.demoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-600 hover:text-blue-800 underline"
+                      >
+                        {selectedApp.demoUrl}
+                      </a>
+                    </div>
+                  </div>
+                )}
+
+                {selectedApp.githubUrl && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700">GitHub 連結</Label>
+                    <div className="flex items-center space-x-2">
+                      <Code className="w-4 h-4 text-gray-500" />
+                      <a
+                        href={selectedApp.githubUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-gray-600 hover:text-gray-800 underline"
+                      >
+                        {selectedApp.githubUrl}
+                      </a>
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-500">創建者</p>
-                    <p className="font-medium">{selectedApp.creator}</p>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700">創建時間</Label>
+                    <p className="text-sm text-gray-900">
+                      {selectedApp.createdAt ? new Date(selectedApp.createdAt).toLocaleString() : '未知'}
+                    </p>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-500">創建日期</p>
-                    <p className="font-medium">{selectedApp.createdAt}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">應用ID</p>
-                    <p className="font-medium">{selectedApp.id}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">所屬部門</p>
-                    <p className="font-medium">{selectedApp.department}</p>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700">最後更新</Label>
+                    <p className="text-sm text-gray-900">
+                      {selectedApp.updatedAt ? new Date(selectedApp.updatedAt).toLocaleString() : '未知'}
+                    </p>
                   </div>
                 </div>
+              </TabsContent>
 
-                {selectedApp.appUrl && (
-                  <div>
-                    <p className="text-sm text-gray-500">應用連結</p>
-                    <div className="flex items-center space-x-2">
-                      <p className="font-medium text-blue-600">{selectedApp.appUrl}</p>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => navigator.clipboard.writeText(selectedApp.appUrl)}
-                      >
-                        複製
-                      </Button>
+              <TabsContent value="stats" className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-600">瀏覽次數</p>
+                          <p className="text-2xl font-bold">{selectedApp.viewsCount || 0}</p>
+                        </div>
+                        <Eye className="w-8 h-8 text-blue-600" />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-600">按讚數</p>
+                          <p className="text-2xl font-bold">{selectedApp.likesCount || 0}</p>
+                        </div>
+                        <Heart className="w-8 h-8 text-red-600" />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-600">評分</p>
+                          <p className="text-2xl font-bold">{selectedApp.rating || 0}</p>
+                        </div>
+                        <Star className="w-8 h-8 text-yellow-600" />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-600">收藏數</p>
+                          <p className="text-2xl font-bold">{selectedApp.favoritesCount || 0}</p>
+                        </div>
+                        <Heart className="w-8 h-8 text-purple-600" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {selectedApp.techStack && selectedApp.techStack.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700">技術棧</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedApp.techStack.map((tech: string, index: number) => (
+                        <Badge key={index} variant="outline">
+                          {tech}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {selectedApp.tags && selectedApp.tags.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700">標籤</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedApp.tags.map((tag: string, index: number) => (
+                        <Badge key={index} variant="secondary">
+                          {tag}
+                        </Badge>
+                      ))}
                     </div>
                   </div>
                 )}
               </TabsContent>
 
-              <TabsContent value="stats" className="space-y-4">
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-blue-600">{selectedApp.views}</p>
-                        <p className="text-sm text-gray-600">總瀏覽量</p>
+              <TabsContent value="technical" className="space-y-4">
+                <div className="space-y-4">
+                  {selectedApp.team && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">開發團隊</Label>
+                      <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="text-sm text-gray-900">
+                          <strong>團隊名稱：</strong>{selectedApp.team.name}
+                        </p>
+                        <p className="text-sm text-gray-900">
+                          <strong>所屬部門：</strong>{selectedApp.team.department}
+                        </p>
+                        {selectedApp.team.contactEmail && (
+                          <p className="text-sm text-gray-900">
+                            <strong>聯絡郵箱：</strong>{selectedApp.team.contactEmail}
+                          </p>
+                        )}
                       </div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-red-600">{selectedApp.likes}</p>
-                        <p className="text-sm text-gray-600">收藏數</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-yellow-600">{selectedApp.rating}</p>
-                        <p className="text-sm text-gray-600">平均評分</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-green-600">{selectedApp.reviews}</p>
-                        <p className="text-sm text-gray-600">評價數量</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </TabsContent>
+                    </div>
+                  )}
 
-              <TabsContent value="reviews" className="space-y-4">
-                <div className="text-center py-8">
-                  <MessageSquare className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-600 mb-2">評價管理</h3>
-                  <p className="text-gray-500">此功能將顯示應用的所有評價和管理選項</p>
+                  {selectedApp.filePath && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">檔案路徑</Label>
+                      <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded font-mono">
+                        {selectedApp.filePath}
+                      </p>
+                    </div>
+                  )}
+
+                  {selectedApp.screenshots && selectedApp.screenshots.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">應用截圖</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {selectedApp.screenshots.map((screenshot: string, index: number) => (
+                          <img
+                            key={index}
+                            src={screenshot}
+                            alt={`Screenshot ${index + 1}`}
+                            className="w-full h-32 object-cover rounded-lg border"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </TabsContent>
             </Tabs>
           )}
+
+          <div className="flex justify-end space-x-3 pt-4 border-t">
+            <Button variant="outline" onClick={() => setShowAppDetail(false)}>
+              關閉
+            </Button>
+            {selectedApp && (
+              <>
+                <Button onClick={() => {
+                  setShowAppDetail(false)
+                  handleEditApp(selectedApp)
+                }}>
+                  <Edit className="w-4 h-4 mr-2" />
+                  編輯應用
+                </Button>
+                {selectedApp.demoUrl && (
+                  <Button onClick={() => window.open(selectedApp.demoUrl, "_blank")}>
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    開啟應用
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
