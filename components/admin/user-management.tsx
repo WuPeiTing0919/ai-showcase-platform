@@ -85,7 +85,9 @@ export function UserManagement() {
           const usersData = await usersResponse.json()
           setUsers(usersData.users || [])
         } else {
-          console.error('獲取用戶列表失敗')
+          const errorData = await usersResponse.json().catch(() => ({}))
+          console.error('獲取用戶列表失敗:', errorData.error || usersResponse.statusText)
+          setError(errorData.error || '獲取用戶列表失敗')
         }
 
         // 獲取統計資料
@@ -99,7 +101,8 @@ export function UserManagement() {
           const statsData = await statsResponse.json()
           setStats(statsData)
         } else {
-          console.error('獲取統計資料失敗')
+          const errorData = await statsResponse.json().catch(() => ({}))
+          console.error('獲取統計資料失敗:', errorData.error || statsResponse.statusText)
         }
       } catch (error) {
         console.error('載入資料失敗:', error)

@@ -54,8 +54,8 @@ export async function GET(request: NextRequest) {
         GROUP BY judge_id
       ) review_stats ON u.id = review_stats.judge_id
       ORDER BY u.created_at DESC 
-      LIMIT ? OFFSET ?
-    `, [limit, offset]);
+      LIMIT ${limit} OFFSET ${offset}
+    `);
     
     // 分頁資訊
     const totalPages = Math.ceil(total / limit);

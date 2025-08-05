@@ -171,7 +171,7 @@ export function AdminLayout({ children, currentPage, onPageChange }: AdminLayout
     setShowLogoutDialog(false)
 
     // Check if this is a popup/new tab opened from main site
-    if (window.opener && !window.opener.closed) {
+    if (typeof window !== 'undefined' && window.opener && !window.opener.closed) {
       // If opened from another window, close this tab and focus parent
       window.opener.focus()
       window.close()
@@ -214,7 +214,7 @@ export function AdminLayout({ children, currentPage, onPageChange }: AdminLayout
               <Button onClick={() => (window.location.href = "/")} variant="outline">
                 返回首頁
               </Button>
-              {window.opener && !window.opener.closed && (
+              {typeof window !== 'undefined' && window.opener && !window.opener.closed && (
                 <Button
                   onClick={() => {
                     window.opener.focus()
