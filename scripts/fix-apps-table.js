@@ -51,6 +51,12 @@ async function fixAppsTable() {
       // 添加版本欄位
       `ALTER TABLE apps ADD COLUMN version VARCHAR(50) DEFAULT '1.0.0'`,
       
+      // 添加圖示欄位
+      `ALTER TABLE apps ADD COLUMN icon VARCHAR(50) DEFAULT 'Bot'`,
+      
+      // 添加圖示顏色欄位
+      `ALTER TABLE apps ADD COLUMN icon_color VARCHAR(100) DEFAULT 'from-blue-500 to-purple-500'`,
+      
       // 添加最後更新時間欄位
       `ALTER TABLE apps ADD COLUMN last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`
     ];

@@ -98,6 +98,8 @@ CREATE TABLE apps (
     likes_count INT DEFAULT 0,
     views_count INT DEFAULT 0,
     rating DECIMAL(3,2) DEFAULT 0,
+    icon VARCHAR(50) DEFAULT 'Bot',
+    icon_color VARCHAR(100) DEFAULT 'from-blue-500 to-purple-500',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE CASCADE,

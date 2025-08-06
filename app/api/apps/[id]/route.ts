@@ -27,7 +27,7 @@ export async function GET(
     const sql = `
       SELECT 
         a.*,
-        u.name as creator_name,
+        u.name as user_creator_name,
         u.email as creator_email,
         u.department as creator_department,
         u.role as creator_role,
@@ -67,17 +67,20 @@ export async function GET(
       githubUrl: app.github_url,
       docsUrl: app.docs_url,
       version: app.version,
+      icon: app.icon,
+      iconColor: app.icon_color,
       likesCount: app.likes_count,
       viewsCount: app.views_count,
       rating: app.rating,
       createdAt: app.created_at,
       updatedAt: app.updated_at,
       lastUpdated: app.last_updated,
+      department: app.department,
       creator: {
         id: app.creator_id,
-        name: app.creator_name,
+        name: app.creator_name || app.user_creator_name,
         email: app.creator_email,
-        department: app.creator_department,
+        department: app.department || app.creator_department,
         role: app.creator_role
       },
       team: app.team_id ? {
@@ -139,7 +142,9 @@ export async function PUT(
       demoUrl,
       githubUrl,
       docsUrl,
-      version
+      version,
+      icon,
+      iconColor
     }: AppUpdateRequest = body;
 
     // 檢查應用程式是否存在
@@ -183,7 +188,12 @@ export async function PUT(
     }
 
     if (type !== undefined) {
-      const validTypes = ['web_app', 'mobile_app', 'desktop_app', 'api_service', 'ai_model', 'data_analysis', 'automation', 'other'];
+      const validTypes = [
+        'productivity', 'ai_model', 'automation', 'data_analysis', 'educational', 
+        'healthcare', 'finance', 'iot_device', 'blockchain', 'ar_vr', 
+        'machine_learning', 'computer_vision', 'nlp', 'robotics', 'cybersecurity', 
+        'cloud_service', 'other'
+      ];
       if (!validTypes.includes(type)) {
         return NextResponse.json(
           { error: '無效的應用程式類型' },
@@ -248,6 +258,14 @@ export async function PUT(
 
     if (version !== undefined) {
       updateData.version = version;
+    }
+
+    if (icon !== undefined) {
+      updateData.icon = icon;
+    }
+
+    if (iconColor !== undefined) {
+      updateData.icon_color = iconColor;
     }
 
     // 更新應用程式

@@ -8,16 +8,12 @@
     "lint": "next lint",
     "start": "next start",
     "db:setup": "node scripts/setup-database.js",
-    "db:test": "node database_connection_test.js",
-    "db:reset": "node scripts/reset-database.js",
-    "admin:create": "node scripts/create-admin.js",
-            "db:fix-apps": "node scripts/fix-apps-table.js",
-        "db:update-types": "node scripts/update-app-types.js",
-        "test:apps": "node scripts/test-apps-api.js",
-        "test:frontend-app": "node scripts/test-frontend-app-creation.js",
-        "test:admin-app": "node scripts/test-admin-app-creation.js",
-        "test:user-permissions": "node scripts/test-user-permissions.js",
-        "create:admin": "node scripts/create-admin-user.js"
+    "db:fix-apps": "node scripts/fix-apps-table.js",
+    "db:update-types": "node scripts/update-app-types.js",
+    "db:update-structure": "node scripts/fix-apps-table.js",
+    "test:app-edit": "node scripts/test-app-edit.js",
+    "test:app-edit-fix": "node scripts/test-app-edit-fix.js",
+    "create:admin": "node scripts/create-admin-user.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

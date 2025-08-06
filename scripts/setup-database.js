@@ -43,7 +43,7 @@ async function setupDatabase() {
     
     // 4. 讀取並執行SQL腳本
     console.log('📝 執行資料庫建立腳本...');
-    const sqlScript = fs.readFileSync(path.join(__dirname, '../database_setup_simple.sql'), 'utf8');
+    const sqlScript = fs.readFileSync(path.join(__dirname, '../database_setup.sql'), 'utf8');
     
     // 分割SQL語句並執行
     const statements = sqlScript

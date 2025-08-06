@@ -14,6 +14,8 @@ export interface App {
   githubUrl?: string;
   docsUrl?: string;
   version: string;
+  icon?: string;
+  iconColor?: string;
   likesCount: number;
   viewsCount: number;
   rating: number;
@@ -102,6 +104,10 @@ export interface AppCreateRequest {
   githubUrl?: string;
   docsUrl?: string;
   version?: string;
+  creator?: string;
+  department?: string;
+  icon?: string;
+  iconColor?: string;
 }
 
 export interface AppUpdateRequest {
@@ -117,6 +123,8 @@ export interface AppUpdateRequest {
   githubUrl?: string;
   docsUrl?: string;
   version?: string;
+  icon?: string;
+  iconColor?: string;
 }
 
 export interface AppFileUpload {

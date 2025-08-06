@@ -108,14 +108,40 @@ export function AppManagement() {
   const itemsPerPage = 10
   const [newApp, setNewApp] = useState({
     name: "",
-    type: "文字處理",
-    department: "HQBU",
+    type: "",
+    department: "",
     creator: "",
     description: "",
     appUrl: "",
-    icon: "Bot",
-    iconColor: "from-blue-500 to-purple-500",
+    icon: "",
+    iconColor: "",
   })
+
+  // 重置 newApp 狀態到初始值
+  const resetNewApp = () => {
+    setNewApp({
+      name: "",
+      type: "",
+      department: "",
+      creator: "",
+      description: "",
+      appUrl: "",
+      icon: "",
+      iconColor: "",
+    })
+  }
+
+  // 優化：為匿名用戶提供更靈活的部門處理
+  // 部門信息不再完全依賴用戶帳戶，允許匿名用戶查看和過濾
+  const getDepartmentOptions = () => {
+    return [
+      { value: "HQBU", label: "HQBU" },
+      { value: "ITBU", label: "ITBU" },
+      { value: "MBU1", label: "MBU1" },
+      { value: "SBU", label: "SBU" },
+      { value: "其他", label: "其他" } // 新增選項，適合匿名用戶
+    ]
+  }
 
   // 載入應用程式
   const loadApps = async () => {
@@ -161,16 +187,17 @@ export function AppManagement() {
       // 轉換 API 資料格式為前端期望的格式
       const formattedApps = (data.apps || []).map((app: any) => ({
         ...app,
-        creator: app.creator?.name || '未知',
-        department: app.creator?.department || '未知',
         views: app.viewsCount || 0,
         likes: app.likesCount || 0,
         appUrl: app.demoUrl || '',
         type: mapApiTypeToDisplayType(app.type), // 將 API 類型轉換為中文顯示
-        icon: 'Bot',
-        iconColor: 'from-blue-500 to-purple-500',
+        icon: app.icon || 'Bot',
+        iconColor: app.iconColor || 'from-blue-500 to-purple-500',
         reviews: 0, // API 中沒有評論數，設為 0
-        createdAt: app.createdAt ? new Date(app.createdAt).toLocaleDateString() : '未知'
+        createdAt: app.createdAt ? new Date(app.createdAt).toLocaleDateString() : '未知',
+        // 處理 creator 物件，確保正確顯示創建者名稱
+        creator: typeof app.creator === 'object' ? app.creator.name : app.creator,
+        department: typeof app.creator === 'object' ? app.creator.department : app.department
       }))
       
       console.log('格式化後的應用程式:', formattedApps)
@@ -199,6 +226,13 @@ export function AppManagement() {
   useEffect(() => {
     setCurrentPage(1)
   }, [searchTerm, selectedType, selectedStatus])
+
+  // Debug: Monitor edit dialog state
+  useEffect(() => {
+    if (showEditApp) {
+      console.log('Edit dialog opened - newApp:', newApp)
+    }
+  }, [showEditApp, newApp])
 
   // 使用從 API 返回的應用程式，因為過濾已在服務器端完成
   const filteredApps = apps
@@ -234,17 +268,46 @@ export function AppManagement() {
   }
 
   const handleEditApp = (app: any) => {
+    console.log('=== handleEditApp Debug ===')
+    console.log('Input app:', app)
+    console.log('app.type:', app.type)
+    console.log('app.department:', app.department)
+    console.log('app.creator:', app.creator)
+    console.log('app.icon:', app.icon)
+    console.log('app.iconColor:', app.iconColor)
+    
     setSelectedApp(app)
-    setNewApp({
-      name: app.name,
-      type: app.type, // 這裡已經是中文類型了，因為在 loadApps 中已經轉換
-      department: app.department || "HQBU", // 直接使用 department，不是 app.creator?.department
-      creator: app.creator || "", // 直接使用 creator，不是 app.creator?.name
-      description: app.description,
-      appUrl: app.appUrl || "", // 使用 appUrl，不是 app.demoUrl
-      icon: app.icon || "Bot",
-      iconColor: app.iconColor || "from-blue-500 to-purple-500",
-    })
+    
+    // 處理類型轉換：如果類型是英文的，轉換為中文
+    let displayType = app.type
+    if (app.type && !['文字處理', '圖像生成', '程式開發', '數據分析', '教育工具', '健康醫療', '金融科技', '物聯網', '區塊鏈', 'AR/VR', '機器學習', '電腦視覺', '自然語言處理', '機器人', '網路安全', '雲端服務', '其他'].includes(app.type)) {
+      displayType = mapApiTypeToDisplayType(app.type)
+    }
+    
+    // 處理部門和創建者資料
+    let department = app.department
+    let creator = app.creator
+    
+    // 如果 app.creator 是物件（來自詳細 API），提取名稱
+    if (app.creator && typeof app.creator === 'object') {
+      creator = app.creator.name || ""
+      // 優先使用應用程式的部門，而不是創建者的部門
+      department = app.department || app.creator.department || ""
+    }
+    
+    const newAppData = {
+      name: app.name || "",
+      type: displayType || "文字處理",
+      department: department || "",
+      creator: creator || "",
+      description: app.description || "",
+      appUrl: app.appUrl || app.demoUrl || "",
+      icon: app.icon || "",
+      iconColor: app.iconColor || "",
+    }
+    
+    console.log('newAppData:', newAppData)
+    setNewApp(newAppData)
     setShowEditApp(true)
   }
 
@@ -412,7 +475,11 @@ export function AppManagement() {
         description: newApp.description,
         type: mapTypeToApiType(newApp.type),
         demoUrl: newApp.appUrl || undefined,
-        version: '1.0.0'
+        version: '1.0.0',
+        creator: newApp.creator || undefined,
+        department: newApp.department || undefined,
+        icon: newApp.icon || 'Bot',
+        iconColor: newApp.iconColor || 'from-blue-500 to-purple-500'
       }
 
       console.log('準備提交的應用資料:', appData)
@@ -527,6 +594,11 @@ export function AppManagement() {
       'robotics': '機器人',
       'cybersecurity': '網路安全',
       'cloud_service': '雲端服務',
+      // 處理舊的英文類型，確保它們都轉換為中文
+      'web_app': '文字處理',
+      'mobile_app': '文字處理',
+      'desktop_app': '文字處理',
+      'api_service': '程式開發',
       'other': '其他'
     }
     return typeMap[apiType] || '其他'
@@ -546,6 +618,9 @@ export function AppManagement() {
           description: newApp.description,
           type: mapTypeToApiType(newApp.type),
           demoUrl: newApp.appUrl || undefined,
+          icon: newApp.icon, // 新增：更新圖示
+          iconColor: newApp.iconColor, // 新增：更新圖示顏色
+          department: newApp.department, // 新增：更新部門
         }
 
         const response = await fetch(`/api/apps/${selectedApp.id}`, {
@@ -571,6 +646,9 @@ export function AppManagement() {
                   ...newApp,
                   type: mapTypeToApiType(newApp.type),
                   demoUrl: newApp.appUrl,
+                  icon: newApp.icon, // 新增：更新圖示
+                  iconColor: newApp.iconColor, // 新增：更新圖示顏色
+                  department: newApp.department, // 新增：更新部門
                 }
               : app,
           ),
@@ -658,7 +736,10 @@ export function AppManagement() {
           <p className="text-gray-600">管理平台上的所有 AI 應用</p>
         </div>
         <Button
-          onClick={() => setShowAddApp(true)}
+          onClick={() => {
+            resetNewApp() // 重置表單數據
+            setShowAddApp(true)
+          }}
           className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -848,8 +929,8 @@ export function AppManagement() {
                   </TableCell>
                   <TableCell>
                     <div>
-                      <p className="font-medium">{app.creator}</p>
-                      <p className="text-sm text-gray-500">{app.department}</p>
+                      <p className="font-medium">{typeof app.creator === 'object' ? app.creator.name : app.creator}</p>
+                      <p className="text-sm text-gray-500">{typeof app.creator === 'object' ? app.creator.department : app.department}</p>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -989,7 +1070,12 @@ export function AppManagement() {
       )}
 
       {/* Add App Dialog */}
-      <Dialog open={showAddApp} onOpenChange={setShowAddApp}>
+      <Dialog open={showAddApp} onOpenChange={(open) => {
+        setShowAddApp(open)
+        if (!open) {
+          resetNewApp() // 當對話框關閉時也重置表單
+        }
+      }}>
         <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>新增 AI 應用</DialogTitle>
@@ -1064,10 +1150,11 @@ export function AppManagement() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="HQBU">HQBU</SelectItem>
-                    <SelectItem value="ITBU">ITBU</SelectItem>
-                    <SelectItem value="MBU1">MBU1</SelectItem>
-                    <SelectItem value="SBU">SBU</SelectItem>
+                    {getDepartmentOptions().map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -1175,7 +1262,10 @@ export function AppManagement() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="edit-type">應用類型</Label>
-                <Select value={newApp.type} onValueChange={(value) => setNewApp({ ...newApp, type: value })}>
+                <Select value={newApp.type} onValueChange={(value) => {
+                  console.log('Type changed to:', value)
+                  setNewApp({ ...newApp, type: value })
+                }}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -1218,10 +1308,11 @@ export function AppManagement() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="HQBU">HQBU</SelectItem>
-                    <SelectItem value="ITBU">ITBU</SelectItem>
-                    <SelectItem value="MBU1">MBU1</SelectItem>
-                    <SelectItem value="SBU">SBU</SelectItem>
+                    {getDepartmentOptions().map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

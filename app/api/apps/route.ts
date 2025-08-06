@@ -113,9 +113,9 @@ export async function GET(request: NextRequest) {
     const sql = `
       SELECT 
         a.*,
-        u.name as creator_name,
-        u.email as creator_email,
-        u.department as creator_department,
+        u.name as user_creator_name,
+        u.email as user_creator_email,
+        u.department as user_creator_department,
         u.role as creator_role
       FROM apps a
       LEFT JOIN users u ON a.creator_id = u.id
@@ -143,17 +143,20 @@ export async function GET(request: NextRequest) {
       githubUrl: app.github_url,
       docsUrl: app.docs_url,
       version: app.version,
+      icon: app.icon,
+      iconColor: app.icon_color,
       likesCount: app.likes_count,
       viewsCount: app.views_count,
       rating: app.rating,
       createdAt: app.created_at,
       updatedAt: app.updated_at,
       lastUpdated: app.last_updated,
+      department: app.department,
       creator: {
         id: app.creator_id,
-        name: app.creator_name,
-        email: app.creator_email,
-        department: app.creator_department,
+        name: app.creator_name || app.user_creator_name,
+        email: app.user_creator_email,
+        department: app.department || app.user_creator_department,
         role: app.creator_role
       },
       team: app.team_id ? {
@@ -217,7 +220,11 @@ export async function POST(request: NextRequest) {
       demoUrl,
       githubUrl,
       docsUrl,
-      version = '1.0.0'
+      version = '1.0.0',
+      creator,
+      department,
+      icon = 'Bot',
+      iconColor = 'from-blue-500 to-purple-500'
     }: AppCreateRequest = body;
 
     // 驗證必填欄位
@@ -246,10 +253,10 @@ export async function POST(request: NextRequest) {
 
     // 驗證類型
     const validTypes = [
-      'web_app', 'mobile_app', 'desktop_app', 'api_service', 'ai_model', 
-      'data_analysis', 'automation', 'productivity', 'educational', 'healthcare', 
-      'finance', 'iot_device', 'blockchain', 'ar_vr', 'machine_learning', 
-      'computer_vision', 'nlp', 'robotics', 'cybersecurity', 'cloud_service', 'other'
+      'productivity', 'ai_model', 'automation', 'data_analysis', 'educational', 
+      'healthcare', 'finance', 'iot_device', 'blockchain', 'ar_vr', 
+      'machine_learning', 'computer_vision', 'nlp', 'robotics', 'cybersecurity', 
+      'cloud_service', 'other'
     ];
     if (!validTypes.includes(type)) {
       return NextResponse.json(
@@ -290,7 +297,12 @@ export async function POST(request: NextRequest) {
       github_url: githubUrl || null,
       docs_url: docsUrl || null,
       version,
-      status: 'draft'
+      status: 'draft',
+      icon: icon || 'Bot',
+      icon_color: iconColor || 'from-blue-500 to-purple-500',
+      department: department || user.department || 'HQBU',
+      creator_name: creator || user.name || '',
+      creator_email: user.email || ''
     };
 
     // 插入應用程式
